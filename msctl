@@ -135,6 +135,10 @@ Actions:
   backup <world1> <world2> <...>
     Backup the Minecraft world(s).  Backup all worlds by default.
 
+  clean-backups <world>
+    Remove expired backups for the world.  Removes old backups based on
+    mscs-backup-duration.
+
   list-backups <world>
     List the datetime of the backups for the world.
 
@@ -1648,6 +1652,16 @@ worldBackup() {
     # Return a false value (failure).
     return 1
   fi
+  # Return a true value (success).
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Cleanup old backups for the world server.
+#
+# @param 1 The world server of interest.
+# ---------------------------------------------------------------------------
+worldBackupCleanup() {
   # Cleanup old backups.
   if [ $BACKUP_DURATION -gt 0 ]; then
     if ! $RDIFF_BACKUP --remove-older-than ${BACKUP_DURATION}D --force "$BACKUP_LOCATION/$1" >>"$BACKUP_LOG"; then
@@ -3271,12 +3285,27 @@ case "$COMMAND" in
         fi
         # Remove the lock file.
         removeLockFile $WORLD "backup"
+        # Cleanup old backup files.
+        worldBackupCleanup $WORLD
       else
         printf "\nError lock file for world $WORLD could not be created."
         printf "  Is the world already running a backup?\n"
       fi
     done
     printf ".\n"
+    ;;
+  clean-backups)
+    if isWorldEnabled "$1"; then
+      worldBackupCleanup "$1"
+    elif [ -n "$1" ]; then
+      printf "World '$1' does not exist or not enabled.\n"
+      printf "  Usage:  $PROG $COMMAND <world>\n"
+      exit 1
+    else
+      printf "World not supplied.\n"
+      printf "  Usage:  $PROG $COMMAND <world>\n"
+      exit 1
+    fi
     ;;
   list-backups)
     if isWorldEnabled "$1"; then
